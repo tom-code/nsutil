@@ -1,9 +1,10 @@
 # nsutil
+## introduction
 Simple utility to simplify creation of network namespaces, interfaces and bridges.
 Purpose is to create "virtualized" network environment for testing purposes.
 
-Required topology is described is simple json file.
-Following example creates 3 namespaces:
+Required topology is described in a simple json file.
+Following example creates 3 network namespaces:
 - ns1 - with network interface eth0 (which is veth with other end inside namespace nsb)
 - ns2 - with network interface eth0 (which is veth with other end inside namespace nsb)
 - nsb - with network interface b0 (which is bridge connecting veth interfaces from ns1 and ns2)
@@ -30,8 +31,11 @@ Following example creates 3 namespaces:
 }
 ```
 
+## compile
+To compile utility just clone repository and run `go build`.
+
 ## create
-Store content of json to config.json and run: `nsutil create`
+Store example configuration to config.json and run: `./nsutil create`.
 You can then check what is inside network namespaces and try to ping other ends:
 ```
 ip netns exec ns1 ip addr
@@ -64,7 +68,7 @@ PING 1.1.1.2 (1.1.1.2) 56(84) bytes of data.
 ```
 
 ## delete
-To cleanup resources created by nsutil run: `nsutil delete`
+To cleanup resources created by nsutil run: `nsutil delete`.
 Utility will attempt to delete all resources it did create.
 
 ## config file
@@ -78,9 +82,9 @@ Utility will attempt to delete all resources it did create.
 supported interfaces are:
 
 #### veth
-To create veth interface use: `{"namespace": "ns1", "name": "eth9", "type": "veth", "peer_namespace": "nsb", "peer_name": "c1"}`
+To create veth interface use: `{"namespace": "ns1", "name": "eth9", "type": "veth", "peer_namespace": "nsb", "peer_name": "c1"}`.
 This example will create veth pair with one end in namespace "ns1" and interface named "eth2". Other end will be in namespace "nsb" with interface named "c1".
 
 #### bridge
-To create bridge use for example `{"namespace": "nsb", "name": "b0", "type": "bridge", "slave": ["c1", "c2", "c3"]}`
-This example will create bridge named b0 in namespace nsb. Interfaces c1, c2, c3 will be attached to this bridge
+To create bridge use for example `{"namespace": "nsb", "name": "b0", "type": "bridge", "slave": ["c1", "c2", "c3"]}`.
+This example will create bridge named b0 in namespace nsb. Interfaces c1, c2, c3 will be attached to this bridge.
