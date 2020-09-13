@@ -2,6 +2,7 @@ package main
 
 import (
   "fmt"
+  "os/exec"
   "runtime"
   "strconv"
 
@@ -11,11 +12,13 @@ import (
   "github.com/vishvananda/netns"
 )
 
-func make_veth(ns1, ns2 ns.NetNS, name1, name2 string) {
+func make_veth(ns1, ns2 ns.NetNS, name1, name2 string, queues int) {
   veth := netlink.Veth {
     LinkAttrs: netlink.LinkAttrs {
       //MTU: 1000,
       Name: name1,
+      NumTxQueues: queues,
+      NumRxQueues: queues,
       //Namespace: netlink.NsFd(int(netns.Fd())),
     },
     PeerName: "tmp",
@@ -53,6 +56,67 @@ func make_veth(ns1, ns2 ns.NetNS, name1, name2 string) {
   })
 }
 
+func make_macvlan(ns1 ns.NetNS, name, parent string) {
+  rootnetns, err := ns.GetNS("/proc/1/ns/net")
+  if err != nil {
+    panic(err)
+  }
+  defer rootnetns.Close()
+  err = rootnetns.Do(func(_ ns.NetNS) error {
+    parent, err := netlink.LinkByName(parent)
+    if err != nil {
+      return err
+    }
+    mv := netlink.Macvlan {
+      LinkAttrs: netlink.LinkAttrs {
+        MTU: 1000,
+        Name: name,
+        ParentIndex: parent.Attrs().Index,
+        Namespace: netlink.NsFd(int(ns1.Fd())),
+      },
+    }
+    err = netlink.LinkAdd(&mv)
+    if err != nil {
+      return err
+    }
+    return nil
+  })
+  if err != nil {
+    fmt.Println(err)
+  }
+}
+
+func make_ipvlan(ns1 ns.NetNS, name, parent string) {
+  rootnetns, err := ns.GetNS("/proc/1/ns/net")
+  if err != nil {
+    panic(err)
+  }
+  defer rootnetns.Close()
+  err = rootnetns.Do(func(_ ns.NetNS) error {
+    parent, err := netlink.LinkByName(parent)
+    if err != nil {
+      return err
+    }
+    mv := netlink.IPVlan {
+      LinkAttrs: netlink.LinkAttrs {
+        MTU: 1001,
+        Name: name,
+        ParentIndex: parent.Attrs().Index,
+        Namespace: netlink.NsFd(int(ns1.Fd())),
+      },
+      Mode: netlink.IPVLAN_MODE_L2,
+    }
+    err = netlink.LinkAdd(&mv)
+    if err != nil {
+      return err
+    }
+    return nil
+  })
+  if err != nil {
+    fmt.Println(err)
+  }
+}
+
 func make_bridge(ns1 ns.NetNS, name string) {
   br := netlink.Bridge {
     LinkAttrs: netlink.LinkAttrs{
@@ -62,6 +126,27 @@ func make_bridge(ns1 ns.NetNS, name string) {
   ns1.Do(func(_ ns.NetNS) error {
     netlink.LinkAdd(&br)
     netlink.LinkSetUp(&br)
+    return nil
+  })
+}
+
+func make_vlan(ns1 ns.NetNS, iface string, id int) {
+  parent_link := -1
+  ns1.Do(func(_ ns.NetNS) error {
+    parent_linkl, err := netlink.LinkByName(iface)
+    parent_link = parent_linkl.Attrs().Index
+    return err
+  })
+  vlan := netlink.Vlan {
+    LinkAttrs: netlink.LinkAttrs{
+      Name: iface+"-"+strconv.Itoa(id),
+      ParentIndex: parent_link,
+    },
+    VlanId: id,
+  }
+  ns1.Do(func(_ ns.NetNS) error {
+    netlink.LinkAdd(&vlan)
+    netlink.LinkSetUp(&vlan)
     return nil
   })
 }
@@ -176,11 +261,29 @@ func create(cfg Cfg) {
     if iface.Type == "veth" {
       ns1 := nsmap[iface.Namespace]
       ns2 := nsmap[iface.PeerNamespace]
-      make_veth(ns1, ns2, iface.Name, iface.PeerName)
+      make_veth(ns1, ns2, iface.Name, iface.PeerName, iface.Queues)
+    }
+    if iface.Type == "macvlan" {
+      ns1, ok := nsmap[iface.Namespace]
+      if !ok {
+        panic("")
+      }
+      make_macvlan(ns1, iface.Name, iface.Parent)
+    }
+    if iface.Type == "ipvlan" {
+      ns1, ok := nsmap[iface.Namespace]
+      if !ok {
+        panic("")
+      }
+      make_ipvlan(ns1, iface.Name, iface.Parent)
     }
     if iface.Type == "bridge" {
       ns1 := nsmap[iface.Namespace]
       make_bridge(ns1, iface.Name)
+    }
+    if iface.Type == "vlan" {
+      ns1 := nsmap[iface.Namespace]
+      make_vlan(ns1, iface.Name, iface.VlanId)
     }
   }
   for _, iface := range(cfg.Interfaces) {
@@ -194,6 +297,22 @@ func create(cfg Cfg) {
   for _, ip := range(cfg.Ips) {
     ns1 := nsmap[ip.Namespace]
     add_ip(ns1, ip.Interface, ip.Address)
+  }
+
+  for _, exe := range(cfg.Execs) {
+    ns1 := nsmap[exe.Namespace]
+    cmd := exec.Command("sh", "-c", exe.Command)
+    ns1.Do(func(_ ns.NetNS) error {
+      stdoutStderr, err := cmd.CombinedOutput()
+      if err != nil {
+        fmt.Println(err)
+        return err
+      }
+      if len(stdoutStderr) > 0 {
+        fmt.Printf("%s\n", stdoutStderr)
+      }
+      return nil
+    })
   }
 }
 
@@ -247,7 +366,11 @@ func delete(cfg Cfg) {
       fmt.Printf("can't get ns %s\n", lnk.Namespace)
       continue
     }
-    link_del(ns1, lnk.Name)
+    if lnk.Type == "vlan" {
+      link_del(ns1, lnk.Name + "-" + fmt.Sprint(lnk.VlanId))
+    } else {
+      link_del(ns1, lnk.Name)
+    }
   }
   for _, ns := range(cfg.Namespaces) {
     if ns.Type == "" {
