@@ -2,6 +2,7 @@ package main
 
 import (
   "fmt"
+  "os/exec"
   "runtime"
   "strconv"
 
@@ -194,6 +195,20 @@ func create(cfg Cfg) {
   for _, ip := range(cfg.Ips) {
     ns1 := nsmap[ip.Namespace]
     add_ip(ns1, ip.Interface, ip.Address)
+  }
+
+  for _, exe := range(cfg.Execs) {
+    ns1 := nsmap[exe.Namespace]
+    cmd := exec.Command("sh", "-c", exe.Command)
+    ns1.Do(func(_ ns.NetNS) error {
+      stdoutStderr, err := cmd.CombinedOutput()
+      if err != nil {
+        fmt.Println(err)
+        return err
+      }
+      fmt.Printf("%s\n", stdoutStderr)
+      return nil
+    })
   }
 }
 

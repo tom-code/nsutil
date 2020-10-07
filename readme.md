@@ -31,6 +31,14 @@ Following example creates 3 network namespaces:
 }
 ```
 
+```
++-------   +--------+   +------+
+|  ns1 |   |   nsb  |   |  ns2 |
+|      |   |        |   |      |
+|  eth0-----c1-b0-c2-----eth0  |
++------+   +--------+   +------+
+```
+
 ## compile
 To compile utility just clone repository and run `go build`.
 

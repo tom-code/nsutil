@@ -30,10 +30,16 @@ type CfgIp struct {
   Address string `json:"address"`
 }
 
+type CfgExec struct {
+  Namespace string `json:"namespace"`
+  Command string `json:"command"`
+}
+
 type Cfg struct {
   Namespaces []CfgNs `json:"namespaces"`
   Interfaces []CfgInterface `json:"interfaces"`
   Ips []CfgIp `json:"ips"`
+  Execs []CfgExec `json:"exec"`
 }
 
 
