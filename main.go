@@ -54,6 +54,67 @@ func make_veth(ns1, ns2 ns.NetNS, name1, name2 string) {
   })
 }
 
+func make_macvlan(ns1 ns.NetNS, name, parent string) {
+  rootnetns, err := ns.GetNS("/proc/1/ns/net")
+  if err != nil {
+    panic(err)
+  }
+  defer rootnetns.Close()
+  err = rootnetns.Do(func(_ ns.NetNS) error {
+    parent, err := netlink.LinkByName(parent)
+    if err != nil {
+      return err
+    }
+    mv := netlink.Macvlan {
+      LinkAttrs: netlink.LinkAttrs {
+        MTU: 1000,
+        Name: name,
+        ParentIndex: parent.Attrs().Index,
+        Namespace: netlink.NsFd(int(ns1.Fd())),
+      },
+    }
+    err = netlink.LinkAdd(&mv)
+    if err != nil {
+      return err
+    }
+    return nil
+  })
+  if err != nil {
+    fmt.Println(err)
+  }
+}
+
+func make_ipvlan(ns1 ns.NetNS, name, parent string) {
+  rootnetns, err := ns.GetNS("/proc/1/ns/net")
+  if err != nil {
+    panic(err)
+  }
+  defer rootnetns.Close()
+  err = rootnetns.Do(func(_ ns.NetNS) error {
+    parent, err := netlink.LinkByName(parent)
+    if err != nil {
+      return err
+    }
+    mv := netlink.IPVlan {
+      LinkAttrs: netlink.LinkAttrs {
+        MTU: 1001,
+        Name: name,
+        ParentIndex: parent.Attrs().Index,
+        Namespace: netlink.NsFd(int(ns1.Fd())),
+      },
+      Mode: netlink.IPVLAN_MODE_L2,
+    }
+    err = netlink.LinkAdd(&mv)
+    if err != nil {
+      return err
+    }
+    return nil
+  })
+  if err != nil {
+    fmt.Println(err)
+  }
+}
+
 func make_bridge(ns1 ns.NetNS, name string) {
   br := netlink.Bridge {
     LinkAttrs: netlink.LinkAttrs{
@@ -179,6 +240,20 @@ func create(cfg Cfg) {
       ns2 := nsmap[iface.PeerNamespace]
       make_veth(ns1, ns2, iface.Name, iface.PeerName)
     }
+    if iface.Type == "macvlan" {
+      ns1, ok := nsmap[iface.Namespace]
+      if !ok {
+        panic("")
+      }
+      make_macvlan(ns1, iface.Name, iface.Parent)
+    }
+    if iface.Type == "ipvlan" {
+      ns1, ok := nsmap[iface.Namespace]
+      if !ok {
+        panic("")
+      }
+      make_ipvlan(ns1, iface.Name, iface.Parent)
+    }
     if iface.Type == "bridge" {
       ns1 := nsmap[iface.Namespace]
       make_bridge(ns1, iface.Name)
@@ -206,7 +281,9 @@ func create(cfg Cfg) {
         fmt.Println(err)
         return err
       }
-      fmt.Printf("%s\n", stdoutStderr)
+      if len(stdoutStderr) > 0 {
+        fmt.Printf("%s\n", stdoutStderr)
+      }
       return nil
     })
   }

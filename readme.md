@@ -27,6 +27,9 @@ Following example creates 3 network namespaces:
     {"namespace": "ns1", "interface": "eth0", "address": "fd00::100/64"},
     {"namespace": "ns2", "interface": "eth0", "address": "1.1.1.2/24"},
     {"namespace": "ns2", "interface": "eth0", "address": "fd00::101/64"}
+  ],
+  "exec": [
+    {"namespace": "ns1", "command": "ip route add 10.0.1.0/24 via 10.0.0.20"}
   ]
 }
 ```
@@ -96,3 +99,11 @@ This example will create veth pair with one end in namespace "ns1" and interface
 #### bridge
 To create bridge use for example `{"namespace": "nsb", "name": "b0", "type": "bridge", "slave": ["c1", "c2", "c3"]}`.
 This example will create bridge named b0 in namespace nsb. Interfaces c1, c2, c3 will be attached to this bridge.
+
+#### macvlan
+To create macvlan interface use for example `{"namespace": "ns1", "name": "eth0", "type": "macvlan", "parent": "eth0"}`.
+This example will create macvlan interface named eth0 in namespace ns1. Parent interface is eth0 from root namespace.
+
+#### ipvlan
+To create ipvlan interface use for example `{"namespace": "ns1", "name": "eth0", "type": "ipvlan", "parent": "eth0"}`.
+This example will create ipvlan interface named eth0 in namespace ns1. Parent interface is eth0 from root namespace.

@@ -21,6 +21,8 @@ type CfgInterface struct {
   PeerName string `json:"peer_name"`
   PeerNamespace string `json:"peer_namespace"`
 
+  Parent string `json:"parent"`
+
   Slave []string `json:"slave"`
 }
 
