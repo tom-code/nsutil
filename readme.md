@@ -107,3 +107,7 @@ This example will create macvlan interface named eth0 in namespace ns1. Parent i
 #### ipvlan
 To create ipvlan interface use for example `{"namespace": "ns1", "name": "eth0", "type": "ipvlan", "parent": "eth0"}`.
 This example will create ipvlan interface named eth0 in namespace ns1. Parent interface is eth0 from root namespace.
+
+#### vlan
+To create vlan interface based on existing interface use for example `{"namespace": "ns1", "name": "eth0", "type": "vlan", "vlan_id": 100}`.
+This example will create vlan interface named eth0-100 in namespace ns1 based don eth0.

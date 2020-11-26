@@ -24,6 +24,7 @@ type CfgInterface struct {
   Parent string `json:"parent"`
 
   Slave []string `json:"slave"`
+  VlanId int `json:"vlan_id"`
 }
 
 type CfgIp struct {

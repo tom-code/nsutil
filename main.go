@@ -128,6 +128,27 @@ func make_bridge(ns1 ns.NetNS, name string) {
   })
 }
 
+func make_vlan(ns1 ns.NetNS, iface string, id int) {
+  parent_link := -1
+  ns1.Do(func(_ ns.NetNS) error {
+    parent_linkl, err := netlink.LinkByName(iface)
+    parent_link = parent_linkl.Attrs().Index
+    return err
+  })
+  vlan := netlink.Vlan {
+    LinkAttrs: netlink.LinkAttrs{
+      Name: iface+"-"+strconv.Itoa(id),
+      ParentIndex: parent_link,
+    },
+    VlanId: id,
+  }
+  ns1.Do(func(_ ns.NetNS) error {
+    netlink.LinkAdd(&vlan)
+    netlink.LinkSetUp(&vlan)
+    return nil
+  })
+}
+
 func link_del(ns1 ns.NetNS, name string) {
   ns1.Do(func(_ ns.NetNS) error {
     l, err := netlink.LinkByName(name)
@@ -257,6 +278,10 @@ func create(cfg Cfg) {
     if iface.Type == "bridge" {
       ns1 := nsmap[iface.Namespace]
       make_bridge(ns1, iface.Name)
+    }
+    if iface.Type == "vlan" {
+      ns1 := nsmap[iface.Namespace]
+      make_vlan(ns1, iface.Name, iface.VlanId)
     }
   }
   for _, iface := range(cfg.Interfaces) {
