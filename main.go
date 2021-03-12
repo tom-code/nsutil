@@ -366,7 +366,11 @@ func delete(cfg Cfg) {
       fmt.Printf("can't get ns %s\n", lnk.Namespace)
       continue
     }
-    link_del(ns1, lnk.Name)
+    if lnk.Type == "vlan" {
+      link_del(ns1, lnk.Name + "-" + fmt.Sprint(lnk.VlanId))
+    } else {
+      link_del(ns1, lnk.Name)
+    }
   }
   for _, ns := range(cfg.Namespaces) {
     if ns.Type == "" {
