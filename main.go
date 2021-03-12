@@ -12,11 +12,13 @@ import (
   "github.com/vishvananda/netns"
 )
 
-func make_veth(ns1, ns2 ns.NetNS, name1, name2 string) {
+func make_veth(ns1, ns2 ns.NetNS, name1, name2 string, queues int) {
   veth := netlink.Veth {
     LinkAttrs: netlink.LinkAttrs {
       //MTU: 1000,
       Name: name1,
+      NumTxQueues: queues,
+      NumRxQueues: queues,
       //Namespace: netlink.NsFd(int(netns.Fd())),
     },
     PeerName: "tmp",
@@ -259,7 +261,7 @@ func create(cfg Cfg) {
     if iface.Type == "veth" {
       ns1 := nsmap[iface.Namespace]
       ns2 := nsmap[iface.PeerNamespace]
-      make_veth(ns1, ns2, iface.Name, iface.PeerName)
+      make_veth(ns1, ns2, iface.Name, iface.PeerName, iface.Queues)
     }
     if iface.Type == "macvlan" {
       ns1, ok := nsmap[iface.Namespace]

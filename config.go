@@ -25,6 +25,7 @@ type CfgInterface struct {
 
   Slave []string `json:"slave"`
   VlanId int `json:"vlan_id"`
+  Queues int `json:"queues"`
 }
 
 type CfgIp struct {
