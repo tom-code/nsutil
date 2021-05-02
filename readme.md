@@ -44,6 +44,7 @@ Following example creates 3 network namespaces:
 
 ## compile
 To compile utility just clone repository and run `go build`.
+Or run just `go build github.com/tom-code/nsutil`
 
 ## create
 Store example configuration to config.json and run: `./nsutil create`.
